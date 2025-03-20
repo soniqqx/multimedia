@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>MaiunV2.html</title>
+    <script type="text/javascript" src="simpleGame.js"></script>
+    <script type="text/javascript">
+      var game;
+      var background;
+      var character;
+      var trees;
+      var goal;
+      var numTrees = 10;
+      var coins = [];
+      var numCoins = 5; // จำนวนเหรียญที่ต้องการสุ่ม
+      var score = 0; // คะแนน
+      var key;
+      var hasKey = false;
+
+      //   function setupCoins() {
+      //     coins = [];
+      //     for (let i = 0; i < numCoins; i++) {
+      //       let coin = new Sprite(
+      //         game,
+      //         "download__2_-removebg-preview.png",
+      //         40,
+      //         40
+      //       ); // ใช้ภาพเหรียญที่อัปโหลด
+      //       coin.setSpeed(0);
+
+      //       let validPosition = false;
+      //       while (!validPosition) {
+      //         let x = Math.random() * (game.width - 50);
+      //         let y = Math.random() * (game.height - 50);
+
+      //         if (character.distanceTo({ x, y }) > 100) {
+      //           // ไม่ให้เหรียญเกิดใกล้ตัวละคร
+      //           coin.setPosition(x, y);
+      //           validPosition = true;
+      //         }
+      //       }
+
+      //       coins.push(coin);
+      //     }
+      //   }
+
+      //   function checkCoinCollection() {
+      //     for (let i = coins.length - 1; i >= 0; i--) {
+      //       if (character.collidesWith(coins[i])) {
+      //         coins[i].hide(); // ซ่อนเหรียญเมื่อเก็บได้
+      //         coins.splice(i, 1); // ลบออกจากอาร์เรย์
+      //         score += 10; // เพิ่มคะแนน
+      //         console.log("Score:", score);
+      //       }
+      //     }
+      //   }
+
+      Obstacle = function (imageSrc, obstacles) {
+        tObstacle = new Sprite(game, imageSrc, 60, 60);
+        tObstacle.setSpeed(0);
+
+        function isTooClose(x, y) {
+          for (let obj of obstacles) {
+            if (obj && obj.distanceTo({ x, y }) < 100) {
+              return true;
+            }
+          }
+          // ตรวจสอบไม่ให้ใกล้ประตู
+          if (goal && goal.distanceTo({ x, y }) < 120) {
+            return true;
+          }
+          // ตรวจสอบไม่ให้ใกล้ตัวละคร
+          if (character && character.distanceTo({ x, y }) < 120) {
+            return true;
+          }
+          return false;
+        }
+
+        tObstacle.reset = function () {
+          let keepGoing = true;
+          while (keepGoing) {
+            let newX = Math.random() * (this.cWidth - this.width);
+            let newY = Math.random() * (this.cHeight - this.height);
+
+            if (!isTooClose(newX, newY)) {
+              this.setPosition(newX, newY);
+              keepGoing = false;
+            }
+          }
+        };
+
+        tObstacle.reset();
+        return tObstacle;
+      };
+
+      function setupObstacles() {
+        trees = [];
+        let obstacleImages = ["Tree.png", "Grass.png", "Stone.png"];
+
+        for (let i = 0; i < numTrees; i++) {
+          let randomImage =
+            obstacleImages[Math.floor(Math.random() * obstacleImages.length)];
+          trees[i] = new Obstacle(randomImage, trees);
+        }
+      }
+
+      function updateObject() {
+        for (i = 0; i < numTrees; i++) {
+          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับบล็อก
+          console.log(`Tree ${i} distance to character: `, distance);
+
+          if (distance < 45) {
+            // ปรับระยะให้เหมาะสมกับขนาดตัวละคร
+            console.log("Collision detected!");
+            trees[i].hide();
+            alert("You lose");
+            game.stop();
+            document.location.href = ""; // รีโหลดเกม
+          }
+
+          trees[i].update();
+        }
+      }
+
+      Goal = function () {
+        tGoal = new Sprite(game, "DoorClose.PNG", 90, 90);
+        tGoal.setSpeed(0);
+        tGoal.isOpen = false; // กำหนดสถานะเริ่มต้นว่าประตูปิดอยู่
+
+        tGoal.reset = function () {
+          let newX = this.cWidth - this.width - 10; // ติดขอบขวา
+          let newY = 50; // ติดขอบบน
+          this.setPosition(newX, newY);
+          this.isOpen = false;
+          this.setImage("DoorClose.PNG"); // ตั้งค่าประตูปิด
+        };
+
+        tGoal.open = function () {
+          this.setImage("DoorOpen.PNG"); // เปลี่ยนรูปเป็นประตูเปิด
+          this.isOpen = true;
+        };
+
+        tGoal.reset();
+        return tGoal;
+      };
+
+      function setupKey() {
+        key = new Sprite(game, "Key.png", 50, 50);
+        key.setSpeed(0);
+
+        let validPosition = false;
+        while (!validPosition) {
+          let x = Math.random() * (game.width - 50);
+          let y = Math.random() * (game.height - 50);
+
+          if (character.distanceTo({ x, y }) > 100) {
+            key.setPosition(x, y);
+            validPosition = true;
+          }
+        }
+      }
+
+      function checkKeyCollection() {
+        if (!hasKey && character.collidesWith(key)) {
+          key.hide();
+          hasKey = true;
+          console.log("Key collected!");
+        }
+      }
+
+      function resetGame() {
+        score = 0;
+        character.setPosition(50, game.height / 2);
+        character.setSpeed(0);
+        character.pauseAnimation();
+        character.setCurrentCycle("down");
+
+        goal.reset();
+        hasKey = false;
+        setupKey(); // รีเซ็ตกุญแจ
+        setupObstacles();
+      }
+
+      function checkGoal() {
+        if (character.collidesWith(goal) && !goal.isOpen) {
+          if (hasKey) {
+            goal.open();
+            setTimeout(resetGame, 1000);
+          } else {
+            console.log("Door is locked! Find the key.");
+          }
+        }
+      }
+
+      //   Wall = function (x, y) {
+      //     let wall = new Sprite(game, "1.1 Tiles/Tile2_02.png", 50, 50);
+      //     wall.setSpeed(0);
+      //     wall.setPosition(x, y);
+      //     return wall;
+      //   };
+
+      function setupWalls() {
+        let wallThickness = 50;
+        let gameWidth = 800;
+        let gameHeight = 600;
+
+        walls = [];
+
+        // Top and Bottom Walls
+        for (let x = 0; x < gameWidth; x += wallThickness) {
+          walls.push(new Wall(x, 0)); // Top wall
+          walls.push(new Wall(x, gameHeight - wallThickness)); // Bottom wall
+        }
+
+        // Left and Right Walls
+        for (let y = 0; y < gameHeight; y += wallThickness) {
+          walls.push(new Wall(0, y)); // Left wall
+          walls.push(new Wall(gameWidth - wallThickness, y)); // Right wall
+        }
+      }
+
+      function updateWalls() {
+        for (let wall of walls) {
+          if (character.collidesWith(wall)) {
+            console.log("Collision with wall!");
+            alert("You hit a wall!");
+            character.setSpeed(0);
+            character.pauseAnimation();
+          }
+          wall.update();
+        }
+      }
+
+      function init() {
+        game = new Scene();
+
+        // game = new Scene();
+
+        background = new Sprite(game, "bg.png", 800, 600);
+        background.setSpeed(0, 0);
+        background.setPosition(400, 300);
+        character = new Sprite(game, "Boy.png", 256, 256);
+        character.loadAnimation(256, 256, 64, 64);
+        character.generateAnimationCycles();
+        character.renameCycles(new Array("down", "left", "right", "up"));
+        character.setAnimationSpeed(300);
+
+        //start paused
+        character.setPosition(50, game.height / 2);
+        character.setSpeed(0);
+        character.pauseAnimation();
+        character.setCurrentCycle("down");
+
+        document.addEventListener("keydown", function (event) {
+          keysDown[event.key] = true;
+        });
+
+        document.addEventListener("keyup", function (event) {
+          delete keysDown[event.key];
+        });
+        goal = new Goal();
+
+        // setupKey();
+        setupObstacles();
+        game.start();
+      } // end init
+
+      function update() {
+        game.clear();
+        checkKeys();
+        checkGoal();
+        // checkCoinCollection(); // เช็คว่าตัวละครชนเหรียญหรือไม่
+        // if (game.touchable) {
+        //   character.checkAccel();
+        // } else {
+        //   character.checkKeys();
+        // }
+
+        background.update();
+        character.update();
+        goal.update();
+        updateObject();
+        // for (let coin of coins) {
+        //   coin.update();
+        // }
+      } // end update
+
+      function checkKeys() {
+        if (keysDown[K_LEFT]) {
+          //   character.changeXby(-5);
+          console.log("Moving left");
+          character.setSpeed(5);
+          character.playAnimation();
+          character.setMoveAngle(270);
+          character.setCurrentCycle("left");
+        }
+        if (keysDown[K_RIGHT]) {
+          console.log("Moving RIGHT");
+          character.setSpeed(5);
+          character.playAnimation();
+          character.setMoveAngle(90);
+          character.setCurrentCycle("right");
+        }
+        if (keysDown[K_UP]) {
+          console.log("Moving up");
+          character.setSpeed(5);
+          character.playAnimation();
+          character.setMoveAngle(0);
+          character.setCurrentCycle("up");
+        }
+        if (keysDown[K_DOWN]) {
+          character.setSpeed(5);
+          character.playAnimation();
+          character.setMoveAngle(180);
+          character.setCurrentCycle("down");
+        }
+
+        if (keysDown[K_SPACE]) {
+          console.log("Moving space");
+          character.setSpeed(0);
+          character.pauseAnimation();
+          character.setCurrentCycle("down");
+        }
+      }
+    </script>
+  </head>
+  <body onload="init()"></body>
+</html>

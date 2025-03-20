@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>MaiunV2.html</title>
+    <script type="text/javascript" src="simpleGame.js"></script>
+    <script type="text/javascript" src="Lib.js"></script>
+    <script type="text/javascript">
+      var game;
+      var background;
+      var character;
+      var trees;
+      var door;
+      var numTrees = 15;
+
+      function setupObstacles() {
+        trees = [];
+        let obstacleImages = ["Tree.png", "Grass.png", "Stone.png"];
+
+        for (let i = 0; i < numTrees; i++) {
+          let randomImage =
+            obstacleImages[Math.floor(Math.random() * obstacleImages.length)];
+          trees[i] = new Obstacle(randomImage, trees);
+        }
+      }
+
+      function updateObject() {
+        for (i = 0; i < numTrees; i++) {
+          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับบล็อก
+          console.log(`Tree ${i} distance to character: `, distance);
+
+          if (distance < 45) {
+            // ปรับระยะให้เหมาะสมกับขนาดตัวละคร
+            console.log("Collision detected!");
+            trees[i].hide();
+            alert("You lose");
+            game.stop();
+            document.location.href = ""; // รีโหลดเกม
+          }
+
+          trees[i].update();
+        }
+      }
+
+      function resetGame() {
+        score = 0;
+        character.setPosition(50, game.height / 2);
+        character.setSpeed(0);
+        character.pauseAnimation();
+        character.setCurrentCycle("down");
+
+        door.reset();
+        // hasKey = false;
+        // setupKey(); // รีเซ็ตกุญแจ
+        setupObstacles();
+      }
+
+      // function checkDoor() {
+      //   if (character.collidesWith(door) && !door.isOpen) {
+      //     if (hasKey) {
+      //       door.open();
+      //       setTimeout(resetGame, 1000);
+      //     } else {
+      //       console.log("Door is locked! Find the key.");
+      //     }
+      //   }
+      // }
+
+      // function Wall(x, y) {
+      //   let wall = new Sprite(game, "1.1 Tiles/Tile2_02.png", 50, 50);
+      //   wall.setSpeed(0);
+      //   wall.setPosition(x, y);
+      //   return wall;
+      // }
+
+      function setupWalls() {
+        let wallThickness = 50;
+        let gameWidth = 800;
+        let gameHeight = 600;
+
+        walls = [];
+
+        // Top and Bottom Walls
+        for (let x = 0; x < gameWidth; x += wallThickness) {
+          walls.push(new Wall(x, 0)); // Top wall
+          walls.push(new Wall(x, gameHeight - wallThickness)); // Bottom wall
+        }
+
+        // Left and Right Walls
+        for (let y = 0; y < gameHeight; y += wallThickness) {
+          walls.push(new Wall(0, y)); // Left wall
+          walls.push(new Wall(gameWidth - wallThickness, y)); // Right wall
+        }
+      }
+
+      function updateWalls() {
+        for (let wall of walls) {
+          if (character.collidesWith(wall)) {
+            console.log("Collision with wall!");
+            alert("You hit a wall!");
+            character.setSpeed(0);
+            character.pauseAnimation();
+          }
+          wall.update();
+        }
+      }
+
+      function init() {
+        game = new Scene();
+        background = new Sprite(game, "bg.png", 800, 600);
+        background.setSpeed(0, 0);
+        background.setPosition(400, 300);
+        character = new Sprite(game, "Boy.png", 256, 256);
+        character.loadAnimation(256, 256, 64, 64);
+        character.generateAnimationCycles();
+        character.renameCycles(new Array("down", "left", "right", "up"));
+        character.setAnimationSpeed(300);
+
+        //start paused
+        character.setPosition(50, game.height / 2);
+        character.setSpeed(0);
+        character.pauseAnimation();
+        character.setCurrentCycle("down");
+
+        document.addEventListener("keydown", function (event) {
+          keysDown[event.key] = true;
+        });
+
+        document.addEventListener("keyup", function (event) {
+          delete keysDown[event.key];
+        });
+        door = new Door();
+
+        // setupKey();
+        setupObstacles();
+        game.start();
+      } // end init
+
+      function update() {
+        game.clear();
+        checkKeys();
+        background.update();
+        character.update();
+        door.update();
+        updateObject();
+      } // end update
+    </script>
+  </head>
+  <body onload="init()"></body>
+</html>
