@@ -59,12 +59,7 @@ function Obstacle(imageSrc, obstacles) {
   return tObstacle;
 }
 
-//  Wall = function (x, y) {
-//     let wall = new Sprite(game, "1.1 Tiles/Tile2_02.png", 50, 50);
-//     wall.setSpeed(0);
-//     wall.setPosition(x, y);
-//     return wall;
-//   };
+
 
 let gameOver = false;
 function checkKeys() {
@@ -106,7 +101,7 @@ function checkKeys() {
 }
 
 function Treasure() {
-  treasure = new Sprite(game, "treasureClose.png", 150, 150);
+  treasure = new Sprite(game, "treasureClose.png", 90, 90);
   treasure.setSpeed(0);
   treasure.isOpen = "close"; // กำหนดสถานะเริ่มต้นว่าประตูปิดอยู่
 

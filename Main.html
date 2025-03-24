@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Main</title>
+    <style>
+      @font-face {
+        font-family: "Pixel Game";
+        src: url("joystix monospace.otf") format("truetype");
+      }
+    </style>
+    <script type="text/javascript" src="simpleGame.js"></script>
+    <script type="text/javascript" src="Lib.js"></script>
+    <script type="text/javascript">
+      var game;
+      var background;
+      var btn;
+      var cursor;
+      var isHovered = false;
+
+      function init() {
+        game = new Scene();
+        game.hideCursor();
+        background = new Sprite(game, "image.png", 900, 600);
+        background.setSpeed(0, 0);
+        background.setPosition(400, 300);
+
+        btn = new Sprite(game, "btnStart.png", 150, 90);
+        btn.setSpeed(0, 0);
+        btn.setPosition(game.width / 2, game.height / 2); // ตำแหน่งกลางจอ
+
+        cursor = new Sprite(game, "mouse-cursor.png", 50, 50);
+        cursor.setPosition(100, 100);
+        cursor.setSpeed(0);
+        cursor.setBoundAction(STOP);
+
+        cursor.followMouse = function () {
+          this.setX(document.mouseX);
+          this.setY(document.mouseY);
+        }; // end followMouse
+
+        // ติดตามเมาส์
+        document.addEventListener("mousemove", function (event) {
+          cursor.setPosition(event.clientX, event.clientY);
+          checkMouseHover(event.clientX, event.clientY);
+        });
+
+        // ตรวจจับการคลิก
+        document.addEventListener("mousedown", function () {
+          if (isHovered) {
+            console.log("Button clicked! Redirecting...");
+            window.location.href = "Game.html"; // เปลี่ยนหน้าเมื่อคลิก
+          }
+        }); // ติดตามเมาส์
+        document.addEventListener("mousemove", function (event) {
+          cursor.setPosition(event.clientX, event.clientY);
+          checkMouseHover(event.clientX, event.clientY);
+        });
+
+        // ตรวจจับการคลิก
+        document.addEventListener("mousedown", function () {
+          if (isHovered) {
+            console.log("Button clicked! Redirecting...");
+            window.location.href = "Game.html"; // เปลี่ยนหน้าเมื่อคลิก
+          }
+        });
+
+        game.start(); // เริ่มเกม
+      }
+
+      function update() {
+        background.update();
+        btn.update();
+
+        game.context.font = "50px Pixel Game"; // ขนาด 40px ฟอนต์ 8-bit
+        game.context.fillStyle = "White"; // สีขาว
+        game.context.textAlign = "center";
+        game.context.fillText(
+          "MAIUN Adventure",
+          game.width / 2,
+          game.height / 2 - 80
+        );
+        cursor.followMouse();
+        cursor.update();
+      }
+
+      function checkMouseHover(mouseX, mouseY) {
+        if (
+          mouseX > btn.x - btn.width / 2 &&
+          mouseX < btn.x + btn.width / 2 &&
+          mouseY > btn.y - btn.height / 2 &&
+          mouseY < btn.y + btn.height / 2
+        ) {
+          if (!isHovered) {
+            console.log("Hovering over button");
+            btn.setImage("btnClick.png"); // เปลี่ยนรูปเมื่อชี้
+            isHovered = true;
+          }
+        } else {
+          if (isHovered) {
+            console.log("Mouse left button");
+            btn.setImage("btnStart.png"); // เปลี่ยนกลับเป็นปกติเมื่อเม้าส์ออก
+            isHovered = false;
+          }
+        }
+      }
+    </script>
+  </head>
+  <body onload="init()"></body>
+</html>
