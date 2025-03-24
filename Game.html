@@ -3,8 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <title>MaiunV2.html</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+
     <script type="text/javascript" src="simpleGame.js"></script>
     <script type="text/javascript" src="Lib.js"></script>
+    <style>
+      #keyDisplay {
+        font-family: "Poppins", sans-serif;
+        font-size: 20px;
+        color: white;
+        font-weight: bold;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5); /* เพิ่มเงาให้ตัวอักษรดูน่าสนใจ */
+      }
+    </style>
     <script type="text/javascript">
       var game;
       var background;
@@ -22,20 +36,35 @@
       var mon2;
       var mon3;
       var tent;
-      var fire;
+      var treasure;
       var doorFake;
+      var tonson;
+      var bridge;
+      var home;
+      var stone1;
+      var stone2;
+      var hasCollided = false; // ตัวแปรที่ใช้เก็บสถานะการชน
+      let isStoppedByHome = false; // กำหนดตัวแปรให้หยุดเมื่อชนบ้าน
+      let isStoppedByObject = false;
+      let isStoppedByWater = false;
+      let isStoppedByTreasure = false;
+      let isStoppedByGroup = false;
+
+      var gold1;
+      var gold2;
+      var stonedec1;
+      var stonedec2;
+      var stonedec3;
 
       function setupObstacles() {
         trees = [];
         let obstacleImages = [
           "Tree.png",
-          "Grass.png",
-          "Stone.png",
+          "grass.png",
           "Bush_blue_flowers3.png",
-          // "tree2.png",
-          "111.png",
-          // "Bush_red_flowers1.png",
-          // "Fern1_1.png",
+          "10.png",
+          "konmai.png",
+          "bowwee.png",
         ];
 
         for (let i = 0; i < numTrees; i++) {
@@ -47,91 +76,64 @@
         createKeyDisplay(); // สร้าง UI แสดงกุญแจ
       }
 
-      var hasCollided = false; // ตัวแปรที่ใช้เก็บสถานะการชน
-
-      // ฟังก์ชันที่อัปเดตวัตถุต่าง ๆ ในเกม
-      function updateObject() {
-        for (i = 0; i < numTrees; i++) {
-          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับต้นไม้
-          if (gameOver) return;
-          if (!hasCollided && distance < 45) {
-            // ตรวจสอบการชนและยังไม่เคยชนมาก่อน
-            console.log("Collision detected!");
-            // trees[i].hide(); // ซ่อนต้นไม้ที่ชน
-            hasCollided = true; // ตั้งค่าให้ชนแล้วเพื่อไม่ให้แสดงผลซ้ำ
-            character.setSpeed(0); // หยุดตัวละคร
-            character.pauseAnimation(); // หยุดแอนิเมชั่นตัวละคร
-            gameOver = false;
-            // alert("You lose!"); // แสดงข้อความว่าแพ้
-
-            // เริ่มเกมใหม่โดยไม่รีโหลดหน้าเว็บ
-            setTimeout(function () {
-              resetGame2(); // เริ่มเกมใหม่โดยรีเซ็ตสถานะ
-            }, 1000); // หน่วงเวลา 1 วินาทีแล้วเริ่มเกมใหม่
-          }
-
-          trees[i].update(); // อัปเดตต้นไม้
-        }
-
-        checkKeyCollision(); // ตรวจสอบการชนกับกุญแจ
-        checkDoorCollision(); // ตรวจสอบการชนกับประตู
-      }
+      // ฟังก์ชันตรวจสอบการชนกับวัตถุ (Object)
       function updateObjectOLD() {
+        if (gameOver) return; // ถ้าเกมจบแล้ว ไม่ต้องอัปเดต
+
         for (let i = 0; i < numTrees; i++) {
-          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับ Object
-          if (gameOver) return;
-          if (!hasCollided && distance < 45) {
-            console.log("Collision detected!");
-            character.setSpeed(0); // หยุดตัวละคร
+          let distance = trees[i].distanceTo(character);
+
+          // ถ้าชนกับวัตถุ
+          if (!isStoppedByObject && distance < 45) {
+            console.log("Collision detected with object!");
+            character.setSpeed(0, 0); // หยุดตัวละคร
             character.pauseAnimation();
-            hasCollided = true; // ตั้งค่าให้ชนแล้วเพื่อไม่ให้แสดงผลซ้ำ
+            character.setBoundAction(STOP);
+            isStoppedByObject = true; // ตั้งค่าให้หยุดเมื่อชนวัตถุ
             gameOver = true;
+
             blinkCharacter(() => {
-              resetGame2(); // รีเซ็ตเกมใหม่โดยไม่โหลดหน้าใหม่
-              // window.reload();
+              resetGame2();
             });
 
-            return; // หยุดการอัปเดตหลังจากชน
+            return;
           }
 
           trees[i].update(); // อัปเดต Object ให้ยังอยู่ในเกม
         }
+
         checkKeyCollision();
         checkDoorCollision();
+        checkHomeCollision();
+        checkWaterCollision();
+        checkTreasureCollision();
+        // checkGroupCollision();
+        // updateCharacterMovement();
+      }
+
+      // ฟังก์ชันที่ใช้ในการอัปเดตการเคลื่อนไหวของตัวละคร
+      function updateCharacterMovement() {
+        if (gameOver || isStoppedByHome || isStoppedByObject) {
+          return; // หยุดการเคลื่อนไหวหากตัวละครชนบ้านหรือวัตถุ
+        }
+
+        // เพิ่มโค้ดที่บังคับตัวละครเคลื่อนไหวที่นี่
       }
 
       // ฟังก์ชันทำให้ตัวละครกระพริบ
       function blinkCharacter(callback) {
         let count = 0;
         let blinkInterval = setInterval(() => {
-          character.visible = !character.visible; // สลับการแสดงผล
+          character.visible = !character.visible;
           count++;
 
           if (count >= 4) {
-            // กระพริบ 2 ครั้ง (ทุก 150ms)
             clearInterval(blinkInterval);
-            character.visible = true; // กลับมาแสดงผลปกติ
-            setTimeout(callback, 300); // รอ 300ms ก่อนรีเซ็ตเกม
+            character.visible = true;
+            setTimeout(callback, 300);
           }
         }, 150);
       }
-
-      // ฟังก์ชันเริ่มเกมใหม่โดยไม่ต้องโหลดหน้าใหม่
-      function restartGame() {
-        console.log("Restarting game...");
-        score = 0;
-        // รีเซ็ตตำแหน่งตัวละคร
-        character.setPosition(50, game.height / 2);
-        character.setSpeed(0);
-        character.pauseAnimation();
-        hasKey = false;
-        // อัปเดต Object ให้ยังอยู่
-        for (let i = 0; i < numTrees; i++) {
-          trees[i].setVisible(true);
-        }
-        game.start(); // ให้เกมเริ่มใหม่
-      }
-
       function placeKey() {
         if (key) {
           key.hide(); // ซ่อนกุญแจเก่า
@@ -151,8 +153,16 @@
           let overlap = trees.some((tree) => tree.distanceTo({ x, y }) < 50);
           let tooCloseToCharacter = character.distanceTo({ x, y }) < 300;
           let tooCloseToDoor = door.distanceTo({ x, y }) < 100;
+          let tooCloseToWater = water.distanceTo({ x, y }) < 150; // ป้องกันใกล้น้ำ
+          let tooCloseToGroup = stonedec1.distanceTo({ x, y }) < 150; // ป้องกันใกล้น้ำ
 
-          if (!overlap && !tooCloseToCharacter && !tooCloseToDoor) {
+          if (
+            !overlap &&
+            !tooCloseToCharacter &&
+            !tooCloseToDoor &&
+            !tooCloseToWater &&
+            !tooCloseToGroup
+          ) {
             key = new Sprite(game, "key.png", 60, 40);
             key.setSpeed(0);
             key.setPosition(x, y);
@@ -172,10 +182,129 @@
         }
       }
 
+      // ฟังก์ชันเช็คการชนบ้าน
+      function checkHomeCollision() {
+        let minDistance = 120;
+
+        let dx = character.x - home.x;
+        let dy = character.y - home.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < minDistance) {
+          console.log("Character collided with home!");
+
+          let pushBackX = (dx / distance) * minDistance;
+          let pushBackY = (dy / distance) * minDistance;
+          character.x = home.x + pushBackX;
+          character.y = home.y + pushBackY;
+
+          character.setSpeed(0);
+          character.pauseAnimation();
+          isStoppedByHome = true; // ตั้งให้หยุดเมื่อชนบ้าน
+        } else {
+          isStoppedByHome = false; // รีเซ็ตหากไม่ชนบ้าน
+        }
+      }
+
+      function checkWaterCollision() {
+        let minDistance = 120;
+        let allowedPassZone = 100; // ปรับค่านี้เพื่อลดขนาดโซนที่เดินผ่านได้
+
+        let dx = character.x - water.x;
+        let dy = character.y - water.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < minDistance) {
+          console.log("Character collided with water!");
+
+          // ✅ อนุญาตให้ผ่านเฉพาะบริเวณขอบซ้ายแคบ ๆ (allowedPassZone)
+          if (
+            character.x < water.x &&
+            Math.abs(dx) > minDistance - allowedPassZone
+          ) {
+            return; // ออกจากฟังก์ชัน (ไม่ชน)
+          }
+
+          // 🚫 ชนทุกทิศทาง (ยกเว้นโซนที่อนุญาตให้ผ่าน)
+          let pushBackX = (dx / distance) * minDistance;
+          let pushBackY = (dy / distance) * minDistance;
+
+          character.x = water.x + pushBackX;
+          character.y = water.y + pushBackY;
+
+          character.setSpeed(0);
+          character.pauseAnimation();
+          isStoppedByWater = true;
+        } else {
+          isStoppedByWater = false;
+        }
+      }
+
+      let isResetting = false; // ตัวแปรล็อคการรีเซ็ต
+
+      function checkTreasureCollision() {
+        let minDistance = 50;
+
+        let dx = character.x - treasure.x;
+        let dy = character.y - treasure.y;
+        let distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < minDistance) {
+          console.log("Character collided with treasure!");
+
+          // ถ้าไม่ได้มาจากซ้ายให้ดันกลับ
+          let pushBackX = (dx / distance) * minDistance;
+          let pushBackY = (dy / distance) * minDistance;
+          character.x = treasure.x + pushBackX;
+          character.y = treasure.y + pushBackY;
+
+          character.setSpeed(0);
+          character.pauseAnimation();
+          isStoppedByTreasure = true;
+          // treasure.setImage("treasureEmpty.png");
+
+          // ป้องกันการรีเซ็ตซ้ำ
+          if (!isResetting) {
+            isResetting = true;
+            blinkCharacter(() => {
+              resetGame2();
+              isResetting = false; // ปลดล็อคหลังรีเซ็ตเสร็จ
+            });
+          }
+        } else {
+          isStoppedByTreasure = false;
+        }
+      }
+      function checkGroupCollision() {
+        let objectWidth = stonedec1.width / 2; // ใช้ขนาดของวัตถุเพื่อลดระยะกันชนที่ยาวเกินไป
+        let objectHeight = stonedec1.height / 2; // ใช้ขนาดของวัตถุในแนวตั้ง
+        let minDistanceX = objectWidth + 10; // กำหนดระยะกันชนแนว X
+        let minDistanceY = objectHeight; // กำหนดระยะกันชนในแนว Y
+
+        let dx = character.x - stonedec1.x;
+        let dy = character.y - stonedec1.y;
+        let distanceX = Math.abs(dx);
+        let distanceY = Math.abs(dy);
+
+        if (distanceX < minDistanceX && distanceY < minDistanceY) {
+          console.log("Character collided with stonedec1!");
+
+          // ดันออกเฉพาะแนว X (ซ้าย-ขวา) เท่านั้น
+          let pushBackX = (dx / distanceX) * minDistanceX;
+          character.x = stonedec1.x + pushBackX;
+
+          character.setSpeed(0);
+          character.pauseAnimation();
+          isStoppedByGroup = true;
+        } else {
+          isStoppedByGroup = false;
+        }
+      }
+
       let doorAlertShown = false; // ตัวแปรควบคุมการแสดง alert
 
       function checkDoorCollision() {
-        if (character.distanceTo(door) < 70) {
+        if (character.distanceTo(door) < 90) {
           if (hasKey) {
             door.open(); // เปลี่ยนเป็นภาพประตูเปิด
             console.log("ไปหน้าถัดไป!");
@@ -193,10 +322,30 @@
             console.log("คุณไม่มีกุญแจ!");
             alert("คุณไม่มีกุญแจ!");
             doorAlertShown = true; // ตั้งค่าให้รู้ว่า alert เคยแสดงไปแล้ว
+            character.setSpeed(0);
+            character.pauseAnimation();
           }
         } else {
           doorAlertShown = false; // รีเซ็ตให้แสดง alert ได้ใหม่เมื่อออกห่างจากประตู
         }
+      }
+
+      // ปรับการเคลื่อนไหวของตัวละครให้เดินทับสะพานได้
+      function updateCharacterMovement2() {
+        if (gameOver) return; // ถ้าเกมจบแล้ว ไม่ต้องอัปเดต
+
+        // เพิ่มโค้ดที่บังคับตัวละครเคลื่อนไหวที่นี่ (ตัวอย่างเช่น การเดินไปข้างหน้า)
+        if (character && !isStoppedByHome && !isStoppedByObject) {
+          character.setSpeed(8); // ตัวอย่างการเดินของตัวละคร
+          character.moveForward();
+        }
+        // อัปเดตสะพาน
+        // bridge.update();
+        checkKeyCollision();
+        checkDoorCollision();
+        checkHomeCollision();
+        checkGroupCollision();
+        // updateObjectOLD();
       }
 
       function nextLevel() {
@@ -207,66 +356,50 @@
         keyCount = 0; // รีเซ็ตจำนวนกุญแจ
         updateKeyDisplay(); // อัปเดต UI กุญแจ
       }
-      function resetGame() {
-        score = 0;
-        character.setPosition(50, game.height / 2);
+
+      function resetGame2() {
+        hasCollided = false;
+        isStoppedByHome = false;
+        isStoppedByObject = false;
+        isStoppedByWater = false;
+        isStoppedByTreasure = false;
+        isStoppedByGroup = false;
+        gameOver = false;
+
+        character.resetAnimation();
+        character.setPosition(65, 220);
         character.setSpeed(0);
         character.pauseAnimation();
-        character.setCurrentCycle("down");
-        hasKey = false;
-        // setupKey(); // รีเซ็ตกุญแจ
-        updateKeyDisplay();
-        setupObstacles();
-      }
-      function resetGame2() {
-        hasCollided = false; // รีเซ็ตสถานะการชน
-        gameOver = false;
-        character.resetAnimation();
-        character.setPosition(50, game.height / 2); // รีเซ็ตตำแหน่งของตัวละคร
-        character.setSpeed(0); // รีเซ็ตความเร็วของตัวละคร
-        character.pauseAnimation(); // รีสตาร์ทแอนิเมชั่นของตัวละคร
+
+        // treasure.setImage("treasureClose.png");
 
         // รีเซ็ตกุญแจใหม่
-        hasKey = false;
-        keyCount = 0;
-        placeKey(); // สุ่มตำแหน่งกุญแจใหม่
+        if (!hasKey) {
+          keyCount = 0;
+          placeKey(); // สุ่มตำแหน่งกุญแจใหม่
+        }
         updateKeyDisplay();
       }
 
       function createKeyDisplay() {
         keyDisplay = document.createElement("div");
         keyDisplay.style.position = "absolute";
-        keyDisplay.style.top = "10px";
-        keyDisplay.style.left = "10px";
+        keyDisplay.style.top = "30px";
+        keyDisplay.style.left = "20px";
+        keyDisplay.style.fontFamily = "'Poppins', sans-serif"; // ใช้ฟอนต์ Poppins
         keyDisplay.style.fontSize = "20px";
         keyDisplay.style.color = "white";
         keyDisplay.style.fontWeight = "bold";
-        keyDisplay.innerHTML = "🔑 x0"; // เริ่มต้นที่ 0
+        keyDisplay.style.textShadow = "2px 2px 4px rgba(0,0,0,0.5)"; // เพิ่มเงาให้สวยงาม
+        keyDisplay.innerHTML = "🔑 x 0"; // เริ่มต้นที่ 0
         document.body.appendChild(keyDisplay);
       }
 
       // 🔄 อัปเดต UI เมื่อเก็บกุญแจได้
       function updateKeyDisplay() {
-        keyDisplay.innerHTML = `🔑 x${keyCount}`;
+        keyDisplay.innerHTML = `🔑 x ${keyCount}`;
       }
 
-      // ฟังก์ชันที่ใช้วาดเวลา
-      function drawTime(elapsedTime) {
-        var ctx = game.canvas.getContext("2d"); // ได้ context ของ canvas
-
-        // กำหนดลักษณะการวาด
-        ctx.font = "30px Arial"; // กำหนดฟอนต์และขนาด
-        ctx.fillStyle = "white"; // กำหนดสีตัวอักษรเป็นสีขาว
-        ctx.textAlign = "right"; // จัดข้อความไปทางขวา
-        ctx.textBaseline = "top"; // วางข้อความเริ่มจากด้านบน
-
-        // แสดงเวลาที่ผ่านไปในมุมขวาบน
-        ctx.fillText(
-          "เวลา: " + elapsedTime.toFixed(2) + " วินาที",
-          game.canvas.width - 20, // อยู่ห่างจากขอบขวาของ canvas
-          20 // ตั้งค่าตำแหน่ง Y ที่ 20px จากด้านบน
-        );
-      }
       function showDialog(message, isWin) {
         // สร้าง dialog element
         const dialog = document.createElement("div");
@@ -345,29 +478,60 @@
         tent = new Sprite(game, "1.png", 90, 80);
         tent.setSpeed(0);
 
-        fire = new Sprite(game, "treasureClose.png", 60, 60);
-        fire.setSpeed(0);
+        treasure = new Sprite(game, "Chest.png", 40, 40);
+        treasure.setSpeed(0);
 
-        doorFake = new Sprite(game, "doorFake.png", 160, 100);
-        doorFake.loadAnimation(160, 26, 32, 26);
-        doorFake.generateAnimationCycles(SINGLE_ROW, 5); // ถ้าเป็นแถวเดียว 4 เฟรม
-        doorFake.renameCycles(["door"]);
-        doorFake.setCurrentCycle("door");
-        doorFake.setSpeed(0);
-        doorFake.setAnimationSpeed(700);
-        doorFake.playAnimation(true);
+        bridge = new Sprite(game, "Bridge_Wood.png", 100, 100);
+        bridge.setSpeed(0);
+
+        home = new Sprite(game, "House.png", 200, 200);
+        home.setSpeed(0);
+
+        stone1 = new Sprite(game, "stone2.png", 20, 20);
+        stone1.setSpeed(0);
+
+        stone2 = new Sprite(game, "10.png", 20, 20);
+        stone2.setSpeed(0);
+
+        stonedec1 = new Sprite(game, "Group 20.png", 259, 144);
+        stonedec1.setSpeed(0);
+
+        stonedec2 = new Sprite(game, "Oak_tree.png", 80, 100);
+        stonedec2.setSpeed(0);
+
+        stonedec3 = new Sprite(game, "Fences.png", 30, 100);
+        stonedec3.setSpeed(0);
+
+        tonson = new Sprite(game, "slime.png", 200, 500);
+        tonson.setS;
+        tonson.loadAnimation(71, 35, 32, 35);
+        tonson.generateAnimationCycles(SINGLE_ROW, 2); // ถ้าเป็นแถวเดียว 4 เฟรม
+        tonson.renameCycles(["tree"]);
+        tonson.setCurrentCycle("tree");
+        tonson.setSpeed(0);
+        tonson.setAnimationSpeed(700);
+        tonson.playAnimation(true);
 
         // var elapsedTime = timer.getElapsedTime(); // เวลาในเกมที่ผ่านไปแล้ว (เป็นวินาที)
         // drawTime(elapsedTime);
         //start paused
-        character.setPosition(50, game.height / 2);
+        character.setPosition(65, 220);
         mon.setPosition(300, 400);
         mon2.setPosition(300, 500);
         mon3.setPosition(530, 580);
         water.setPosition(400, 550);
         tent.setPosition(600, 550);
-        fire.setPosition(530, 530);
-        doorFake.setPosition(100, 100);
+        treasure.setPosition(400, 530);
+        bridge.setPosition(300, 530);
+        home.setPosition(100, 95);
+        tonson.setPosition(100, 100);
+        stone1.setPosition(500, 100);
+        stone2.setPosition(600, 50);
+        stone2.setSpeed(0);
+        stonedec1.setPosition(670, 60);
+        stonedec2.setPosition(750, 80);
+        stonedec3.setPosition(600, 50);
+
         character.setSpeed(0);
         character.pauseAnimation();
         character.setCurrentCycle("down");
@@ -382,6 +546,7 @@
         door = new Door();
         // setupKey();
         setupObstacles();
+
         game.start();
       } // end init
 
@@ -389,31 +554,17 @@
         game.clear();
         checkKeys();
         background.update();
+        water.update();
+        bridge.update();
         character.update();
-        // mon.update();
         key.update();
         door.update();
-        water.update();
-        // mon2.update();
-        // mon3.update();
-        tent.update();
-        fire.update();
-        // doorFake.update();
+        stonedec1.update();
+        treasure.update();
+        // tonson.update();
+        home.update();
         updateObjectOLD();
-        // var elapsedTime = timer.getElapsedTime();
-        // if (elapsedTime >= 10) {
-        //   // หากเวลาเกิน 60 วินาที เริ่มเกมใหม่
-
-        //   character.setSpeed(0);
-        //   character.pauseAnimation();
-        //   // gameOver = true; // กำหนดว่าเกมจบแล้ว
-
-        //   showDialog("new game", false);
-        //   // window.location.reload(); // รีเฟรชหน้าเว็บเพื่อเริ่มเกมใหม่
-        // } else {
-        //   // วาดเวลา
-        //   drawTime(elapsedTime);
-        // }
+        checkHomeCollision();
       } // end update
     </script>
   </head>

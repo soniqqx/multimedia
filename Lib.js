@@ -1,13 +1,14 @@
 // Door = function
 function Door() {
-  tDoor = new Sprite(game, "DoorClose.PNG", 80, 80);
+  tDoor = new Sprite(game, "DoorClose.PNG", 101, 124);
   tDoor.setSpeed(0);
   tDoor.isOpen = false; // กำหนดสถานะเริ่มต้นว่าประตูปิดอยู่
 
   tDoor.reset = function () {
-    let newX = this.cWidth - this.width - 10; // ติดขอบขวา
+    let offsetX = 50; // ปรับระยะขยับไปทางซ้าย (เพิ่มค่านี้เพื่อให้ขยับจากขวา)
+    let newX = this.cWidth - this.width - 10 - offsetX; // ลดค่าเพื่อขยับซ้าย
     let newY = 50; // ติดขอบบน
-    this.setPosition(newX, newY);
+    this.setPosition(665, newY);
     this.isOpen = false;
     this.setImage("DoorClose.PNG"); // ตั้งค่าประตูปิด
   };
@@ -40,8 +41,25 @@ function Obstacle(imageSrc, obstacles) {
     if (character && character.distanceTo({ x, y }) < 120) {
       return true;
     }
+    // ตรวจสอบไม่ให้ใกล้บ้าน
+    if (home && home.distanceTo({ x, y }) < 120) {
+      return true;
+    }
+
+    if (bridge && bridge.distanceTo({ x, y }) < 120) {
+      return true;
+    }
+
+    if (water && water.distanceTo({ x, y }) < 120) {
+      return true;
+    }
+
+    if (stonedec1 && stonedec1.distanceTo({ x, y }) < 120) {
+      return true;
+    }
     return false;
   }
+
   tObstacle.reset = function () {
     let keepGoing = true;
     while (keepGoing) {
