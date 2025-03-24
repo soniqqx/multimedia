@@ -11,102 +11,297 @@
       var character;
       var trees;
       var door;
-      var numTrees = 15;
+      var numTrees = 20;
+      let key; // ตัวแปรเก็บกุญแจ
+      let hasKey = false;
+      let keyCount = 0; // จำนวนกุญแจที่เก็บได้
+      let keyDisplay; // Element แสดงผลกุญแจที่ UI
+      var timer;
+      var mon;
+      var water;
+      var mon2;
+      var mon3;
+      var tent;
+      var fire;
+      var doorFake;
 
       function setupObstacles() {
         trees = [];
-        let obstacleImages = ["Tree.png", "Grass.png", "Stone.png"];
+        let obstacleImages = [
+          "Tree.png",
+          "Grass.png",
+          "Stone.png",
+          "Bush_blue_flowers3.png",
+          // "tree2.png",
+          "111.png",
+          // "Bush_red_flowers1.png",
+          // "Fern1_1.png",
+        ];
 
         for (let i = 0; i < numTrees; i++) {
           let randomImage =
             obstacleImages[Math.floor(Math.random() * obstacleImages.length)];
           trees[i] = new Obstacle(randomImage, trees);
         }
+        placeKey();
+        createKeyDisplay(); // สร้าง UI แสดงกุญแจ
       }
 
+      var hasCollided = false; // ตัวแปรที่ใช้เก็บสถานะการชน
+
+      // ฟังก์ชันที่อัปเดตวัตถุต่าง ๆ ในเกม
       function updateObject() {
         for (i = 0; i < numTrees; i++) {
-          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับบล็อก
-          console.log(`Tree ${i} distance to character: `, distance);
-
-          if (distance < 45) {
-            // ปรับระยะให้เหมาะสมกับขนาดตัวละคร
+          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับต้นไม้
+          if (gameOver) return;
+          if (!hasCollided && distance < 45) {
+            // ตรวจสอบการชนและยังไม่เคยชนมาก่อน
             console.log("Collision detected!");
-            trees[i].hide();
-            alert("You lose");
-            game.stop();
-            document.location.href = ""; // รีโหลดเกม
+            // trees[i].hide(); // ซ่อนต้นไม้ที่ชน
+            hasCollided = true; // ตั้งค่าให้ชนแล้วเพื่อไม่ให้แสดงผลซ้ำ
+            character.setSpeed(0); // หยุดตัวละคร
+            character.pauseAnimation(); // หยุดแอนิเมชั่นตัวละคร
+            gameOver = false;
+            // alert("You lose!"); // แสดงข้อความว่าแพ้
+
+            // เริ่มเกมใหม่โดยไม่รีโหลดหน้าเว็บ
+            setTimeout(function () {
+              resetGame2(); // เริ่มเกมใหม่โดยรีเซ็ตสถานะ
+            }, 1000); // หน่วงเวลา 1 วินาทีแล้วเริ่มเกมใหม่
           }
 
-          trees[i].update();
+          trees[i].update(); // อัปเดตต้นไม้
+        }
+
+        checkKeyCollision(); // ตรวจสอบการชนกับกุญแจ
+        checkDoorCollision(); // ตรวจสอบการชนกับประตู
+      }
+      function updateObjectOLD() {
+        for (let i = 0; i < numTrees; i++) {
+          let distance = trees[i].distanceTo(character); // วัดระยะห่างระหว่างตัวละครกับ Object
+          if (gameOver) return;
+          if (!hasCollided && distance < 45) {
+            console.log("Collision detected!");
+            character.setSpeed(0); // หยุดตัวละคร
+            character.pauseAnimation();
+            hasCollided = true; // ตั้งค่าให้ชนแล้วเพื่อไม่ให้แสดงผลซ้ำ
+            gameOver = true;
+            blinkCharacter(() => {
+              resetGame2(); // รีเซ็ตเกมใหม่โดยไม่โหลดหน้าใหม่
+              // window.reload();
+            });
+
+            return; // หยุดการอัปเดตหลังจากชน
+          }
+
+          trees[i].update(); // อัปเดต Object ให้ยังอยู่ในเกม
+        }
+        checkKeyCollision();
+        checkDoorCollision();
+      }
+
+      // ฟังก์ชันทำให้ตัวละครกระพริบ
+      function blinkCharacter(callback) {
+        let count = 0;
+        let blinkInterval = setInterval(() => {
+          character.visible = !character.visible; // สลับการแสดงผล
+          count++;
+
+          if (count >= 4) {
+            // กระพริบ 2 ครั้ง (ทุก 150ms)
+            clearInterval(blinkInterval);
+            character.visible = true; // กลับมาแสดงผลปกติ
+            setTimeout(callback, 300); // รอ 300ms ก่อนรีเซ็ตเกม
+          }
+        }, 150);
+      }
+
+      // ฟังก์ชันเริ่มเกมใหม่โดยไม่ต้องโหลดหน้าใหม่
+      function restartGame() {
+        console.log("Restarting game...");
+        score = 0;
+        // รีเซ็ตตำแหน่งตัวละคร
+        character.setPosition(50, game.height / 2);
+        character.setSpeed(0);
+        character.pauseAnimation();
+        hasKey = false;
+        // อัปเดต Object ให้ยังอยู่
+        for (let i = 0; i < numTrees; i++) {
+          trees[i].setVisible(true);
+        }
+        game.start(); // ให้เกมเริ่มใหม่
+      }
+
+      function placeKey() {
+        if (key) {
+          key.hide(); // ซ่อนกุญแจเก่า
+        }
+
+        let keyPlaced = false;
+        let padding = 50; // ระยะห่างจากขอบ
+
+        while (!keyPlaced) {
+          let x = Math.random() * game.canvas.width;
+          let y = Math.random() * game.canvas.height;
+
+          // ป้องกันไม่ให้ตกขอบ
+          x = Math.max(padding, Math.min(x, game.canvas.width - padding));
+          y = Math.max(padding, Math.min(y, game.canvas.height - padding));
+
+          let overlap = trees.some((tree) => tree.distanceTo({ x, y }) < 50);
+          let tooCloseToCharacter = character.distanceTo({ x, y }) < 300;
+          let tooCloseToDoor = door.distanceTo({ x, y }) < 100;
+
+          if (!overlap && !tooCloseToCharacter && !tooCloseToDoor) {
+            key = new Sprite(game, "key.png", 60, 40);
+            key.setSpeed(0);
+            key.setPosition(x, y);
+            keyPlaced = true;
+          }
         }
       }
 
+      function checkKeyCollision() {
+        if (!hasKey && character.distanceTo(key) < 40) {
+          hasKey = true;
+          keyCount += 1;
+          console.log("เก็บกุญแจได้!");
+          // alert("เก็บกุญแจได้!");
+          key.hide(); // ซ่อนกุญแจเมื่อเก็บได้
+          updateKeyDisplay();
+        }
+      }
+
+      let doorAlertShown = false; // ตัวแปรควบคุมการแสดง alert
+
+      function checkDoorCollision() {
+        if (character.distanceTo(door) < 70) {
+          if (hasKey) {
+            door.open(); // เปลี่ยนเป็นภาพประตูเปิด
+            console.log("ไปหน้าถัดไป!");
+
+            // **หยุดตัวละครทันที**
+            character.setSpeed(0);
+            character.pauseAnimation();
+
+            // รอ 1 วินาที แล้วเปลี่ยนหน้า
+            setTimeout(() => {
+              nextLevel(); // ไปหน้าถัดไป
+            }, 1000);
+          } else if (!doorAlertShown) {
+            // ตรวจสอบว่าถ้ายังไม่เคยแสดง alert
+            console.log("คุณไม่มีกุญแจ!");
+            alert("คุณไม่มีกุญแจ!");
+            doorAlertShown = true; // ตั้งค่าให้รู้ว่า alert เคยแสดงไปแล้ว
+          }
+        } else {
+          doorAlertShown = false; // รีเซ็ตให้แสดง alert ได้ใหม่เมื่อออกห่างจากประตู
+        }
+      }
+
+      function nextLevel() {
+        console.log("ไปหน้าถัดไป...");
+        window.location.href = "Treasure2.html"; // เปลี่ยนเป็นชื่อไฟล์หน้าถัดไป
+        setupObstacles(); // รีเซ็ตอุปสรรคใหม่ในหน้าถัดไป
+        character.setPosition(50, game.height / 2); // รีเซ็ตตัวละคร
+        keyCount = 0; // รีเซ็ตจำนวนกุญแจ
+        updateKeyDisplay(); // อัปเดต UI กุญแจ
+      }
       function resetGame() {
         score = 0;
         character.setPosition(50, game.height / 2);
         character.setSpeed(0);
         character.pauseAnimation();
         character.setCurrentCycle("down");
-
-        door.reset();
-        // hasKey = false;
+        hasKey = false;
         // setupKey(); // รีเซ็ตกุญแจ
+        updateKeyDisplay();
         setupObstacles();
       }
+      function resetGame2() {
+        hasCollided = false; // รีเซ็ตสถานะการชน
+        gameOver = false;
+        character.resetAnimation();
+        character.setPosition(50, game.height / 2); // รีเซ็ตตำแหน่งของตัวละคร
+        character.setSpeed(0); // รีเซ็ตความเร็วของตัวละคร
+        character.pauseAnimation(); // รีสตาร์ทแอนิเมชั่นของตัวละคร
 
-      // function checkDoor() {
-      //   if (character.collidesWith(door) && !door.isOpen) {
-      //     if (hasKey) {
-      //       door.open();
-      //       setTimeout(resetGame, 1000);
-      //     } else {
-      //       console.log("Door is locked! Find the key.");
-      //     }
-      //   }
-      // }
-
-      // function Wall(x, y) {
-      //   let wall = new Sprite(game, "1.1 Tiles/Tile2_02.png", 50, 50);
-      //   wall.setSpeed(0);
-      //   wall.setPosition(x, y);
-      //   return wall;
-      // }
-
-      function setupWalls() {
-        let wallThickness = 50;
-        let gameWidth = 800;
-        let gameHeight = 600;
-
-        walls = [];
-
-        // Top and Bottom Walls
-        for (let x = 0; x < gameWidth; x += wallThickness) {
-          walls.push(new Wall(x, 0)); // Top wall
-          walls.push(new Wall(x, gameHeight - wallThickness)); // Bottom wall
-        }
-
-        // Left and Right Walls
-        for (let y = 0; y < gameHeight; y += wallThickness) {
-          walls.push(new Wall(0, y)); // Left wall
-          walls.push(new Wall(gameWidth - wallThickness, y)); // Right wall
-        }
+        // รีเซ็ตกุญแจใหม่
+        hasKey = false;
+        keyCount = 0;
+        placeKey(); // สุ่มตำแหน่งกุญแจใหม่
+        updateKeyDisplay();
       }
 
-      function updateWalls() {
-        for (let wall of walls) {
-          if (character.collidesWith(wall)) {
-            console.log("Collision with wall!");
-            alert("You hit a wall!");
-            character.setSpeed(0);
-            character.pauseAnimation();
-          }
-          wall.update();
-        }
+      function createKeyDisplay() {
+        keyDisplay = document.createElement("div");
+        keyDisplay.style.position = "absolute";
+        keyDisplay.style.top = "10px";
+        keyDisplay.style.left = "10px";
+        keyDisplay.style.fontSize = "20px";
+        keyDisplay.style.color = "white";
+        keyDisplay.style.fontWeight = "bold";
+        keyDisplay.innerHTML = "🔑 x0"; // เริ่มต้นที่ 0
+        document.body.appendChild(keyDisplay);
+      }
+
+      // 🔄 อัปเดต UI เมื่อเก็บกุญแจได้
+      function updateKeyDisplay() {
+        keyDisplay.innerHTML = `🔑 x${keyCount}`;
+      }
+
+      // ฟังก์ชันที่ใช้วาดเวลา
+      function drawTime(elapsedTime) {
+        var ctx = game.canvas.getContext("2d"); // ได้ context ของ canvas
+
+        // กำหนดลักษณะการวาด
+        ctx.font = "30px Arial"; // กำหนดฟอนต์และขนาด
+        ctx.fillStyle = "white"; // กำหนดสีตัวอักษรเป็นสีขาว
+        ctx.textAlign = "right"; // จัดข้อความไปทางขวา
+        ctx.textBaseline = "top"; // วางข้อความเริ่มจากด้านบน
+
+        // แสดงเวลาที่ผ่านไปในมุมขวาบน
+        ctx.fillText(
+          "เวลา: " + elapsedTime.toFixed(2) + " วินาที",
+          game.canvas.width - 20, // อยู่ห่างจากขอบขวาของ canvas
+          20 // ตั้งค่าตำแหน่ง Y ที่ 20px จากด้านบน
+        );
+      }
+      function showDialog(message, isWin) {
+        // สร้าง dialog element
+        const dialog = document.createElement("div");
+        dialog.style.position = "fixed";
+        dialog.style.top = "50%";
+        dialog.style.left = "50%";
+        dialog.style.transform = "translate(-50%, -50%)";
+        dialog.style.background = "white";
+        dialog.style.padding = "20px";
+        dialog.style.border = "2px solid black";
+        dialog.style.textAlign = "center";
+        dialog.style.zIndex = "1000";
+
+        const text = document.createElement("p");
+        text.innerText = message;
+        dialog.appendChild(text);
+
+        const button = document.createElement("button");
+        button.innerText = "เริ่มใหม่";
+        button.style.marginTop = "10px";
+        button.onclick = () => {
+          // ใช้ setTimeout เพื่อดีเลย์การเปลี่ยนหน้า
+          setTimeout(() => {
+            location.reload();
+          }, 500); // ดีเลย์เล็กน้อยเพื่อให้ Dialog ปิดก่อน
+        };
+
+        dialog.appendChild(button);
+        document.body.appendChild(dialog);
       }
 
       function init() {
         game = new Scene();
+        timer = new Timer();
+        timer.reset();
         background = new Sprite(game, "bg.png", 800, 600);
         background.setSpeed(0, 0);
         background.setPosition(400, 300);
@@ -115,9 +310,64 @@
         character.generateAnimationCycles();
         character.renameCycles(new Array("down", "left", "right", "up"));
         character.setAnimationSpeed(300);
+        character.setBoundAction(STOP);
 
+        mon = new Sprite(game, "Attack_2.png", 256, 256);
+        mon.loadAnimation(512, 128, 128, 128);
+        mon.generateAnimationCycles(SINGLE_ROW, 4); // ถ้าเป็นแถวเดียว 4 เฟรม
+        mon.renameCycles(["attack"]);
+        mon.setCurrentCycle("attack");
+        mon.setSpeed(0);
+        mon.setAnimationSpeed(500);
+        mon.playAnimation(true);
+
+        mon2 = new Sprite(game, "Jump.png", 256, 256);
+        mon2.loadAnimation(1664, 128, 128, 128);
+        mon2.generateAnimationCycles(SINGLE_ROW, 13); // ถ้าเป็นแถวเดียว 4 เฟรม
+        mon2.renameCycles(["jump"]);
+        mon2.setCurrentCycle("jump");
+        mon2.setSpeed(0);
+        mon2.setAnimationSpeed(700);
+        mon2.playAnimation(true);
+
+        mon3 = new Sprite(game, "Slime3_Attack_full.png", 576, 60);
+        mon3.loadAnimation(576, 60, 64, 60);
+        mon3.generateAnimationCycles(SINGLE_ROW, 9); // ถ้าเป็นแถวเดียว 4 เฟรม
+        mon3.renameCycles(["bomb"]);
+        mon3.setCurrentCycle("bomb");
+        mon3.setSpeed(0);
+        mon3.setAnimationSpeed(1000);
+        mon3.playAnimation(true);
+
+        water = new Sprite(game, "water.gif", 200, 200);
+        water.setSpeed(0);
+
+        tent = new Sprite(game, "1.png", 90, 80);
+        tent.setSpeed(0);
+
+        fire = new Sprite(game, "treasureClose.png", 60, 60);
+        fire.setSpeed(0);
+
+        doorFake = new Sprite(game, "doorFake.png", 160, 100);
+        doorFake.loadAnimation(160, 26, 32, 26);
+        doorFake.generateAnimationCycles(SINGLE_ROW, 5); // ถ้าเป็นแถวเดียว 4 เฟรม
+        doorFake.renameCycles(["door"]);
+        doorFake.setCurrentCycle("door");
+        doorFake.setSpeed(0);
+        doorFake.setAnimationSpeed(700);
+        doorFake.playAnimation(true);
+
+        // var elapsedTime = timer.getElapsedTime(); // เวลาในเกมที่ผ่านไปแล้ว (เป็นวินาที)
+        // drawTime(elapsedTime);
         //start paused
         character.setPosition(50, game.height / 2);
+        mon.setPosition(300, 400);
+        mon2.setPosition(300, 500);
+        mon3.setPosition(530, 580);
+        water.setPosition(400, 550);
+        tent.setPosition(600, 550);
+        fire.setPosition(530, 530);
+        doorFake.setPosition(100, 100);
         character.setSpeed(0);
         character.pauseAnimation();
         character.setCurrentCycle("down");
@@ -130,7 +380,6 @@
           delete keysDown[event.key];
         });
         door = new Door();
-
         // setupKey();
         setupObstacles();
         game.start();
@@ -141,8 +390,30 @@
         checkKeys();
         background.update();
         character.update();
+        // mon.update();
+        key.update();
         door.update();
-        updateObject();
+        water.update();
+        // mon2.update();
+        // mon3.update();
+        tent.update();
+        fire.update();
+        // doorFake.update();
+        updateObjectOLD();
+        // var elapsedTime = timer.getElapsedTime();
+        // if (elapsedTime >= 10) {
+        //   // หากเวลาเกิน 60 วินาที เริ่มเกมใหม่
+
+        //   character.setSpeed(0);
+        //   character.pauseAnimation();
+        //   // gameOver = true; // กำหนดว่าเกมจบแล้ว
+
+        //   showDialog("new game", false);
+        //   // window.location.reload(); // รีเฟรชหน้าเว็บเพื่อเริ่มเกมใหม่
+        // } else {
+        //   // วาดเวลา
+        //   drawTime(elapsedTime);
+        // }
       } // end update
     </script>
   </head>
