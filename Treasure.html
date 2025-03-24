@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>MaiunV2.html</title>
+    <script type="text/javascript" src="simpleGame.js"></script>
+    <script type="text/javascript" src="Lib.js"></script>
+    <script type="text/javascript">
+      var game;
+      var background;
+      var character;
+      var treasures = []; // เก็บรายการสมบัติ
+      var correctTreasureIndex;
+      var treasureSelected = false;
+      var level = 1; // ตั้งระดับเริ่มต้น
+      var numBoxes = 3; // จำนวนกล่องเริ่มต้น
+      var timeLeft = 30; // เวลาที่เริ่มต้น
+      var timer;
+      var gameover = false;
+      var hintGiven = false;
+      var treasure4;
+      var treasure5;
+      var treasure6;
+
+      function startTimer() {
+        timeLeft = 30 - level; // ลดเวลาลงเมื่อเลเวลเพิ่ม
+        timer = setInterval(function () {
+          timeLeft--;
+          if (timeLeft <= 0) {
+            clearInterval(timer);
+            showDialog("หมดเวลา! เกมจบ", false);
+          }
+        }, 1000); // ทุกๆ 1 วินาที
+      }
+
+      // ฟังก์ชันให้คำใบ้
+      function giveHint() {
+        if (!hintGiven) {
+          hintGiven = true; // ป้องกันไม่ให้ให้คำใบ้ซ้ำ
+          console.log("Correct Treasure Index:", correctTreasureIndex); // log ค่านี้เพื่อดูว่ามันถูกต้องไหม
+
+          let hintMessage = "คำใบ้: ";
+
+          // ตรวจสอบค่า correctTreasureIndex ว่าถูกต้องหรือไม่
+          if (correctTreasureIndex === 0) {
+            hintMessage += "กล่องที่ถูกต้องอยู่ทางซ้าย";
+          } else if (correctTreasureIndex === 1) {
+            hintMessage += "กล่องที่ถูกต้องอยู่กลาง";
+          } else if (correctTreasureIndex === 2) {
+            hintMessage += "กล่องที่ถูกต้องอยู่ทางขวา";
+          } else {
+            hintMessage += "ไม่มีข้อมูลคำใบ้"; // ถ้าเกิดค่าผิดปกติ
+          }
+
+          console.log("Hint Message:", hintMessage); // เพิ่มการ log ที่นี่ด้วย
+          showDialog(hintMessage, false); // ส่งข้อความที่เตรียมไว้ให้แสดง
+        }
+      }
+
+      // ฟังก์ชันอัปเดตคำใบ้
+      function updateHint() {
+        if (!hintGiven) {
+          let hintMessage = `คำใบ้: ${hints[currentHintIndex]}`;
+          console.log("Updating hint: ", hintMessage); // log ข้อมูลคำใบ้ที่อัปเดต
+          showDialog(hintMessage, false); // แสดงคำใบ้
+          hintGiven = true;
+        }
+      }
+
+      // ฟังก์ชันแสดง Dialog
+      function showDialog(message, isWin) {
+        const dialog = document.createElement("div");
+        dialog.style.position = "fixed";
+        dialog.style.top = "50%";
+        dialog.style.left = "50%";
+        dialog.style.transform = "translate(-50%, -50%)";
+        dialog.style.background = "white";
+        dialog.style.padding = "20px";
+        dialog.style.border = "2px solid black";
+        dialog.style.textAlign = "center";
+        dialog.style.zIndex = "1000";
+
+        const text = document.createElement("p");
+        text.innerText = message;
+        dialog.appendChild(text);
+
+        const button = document.createElement("button");
+        button.innerText = "ลองใหม่";
+        button.style.marginTop = "10px";
+        button.onclick = () => {
+          // รีเซ็ตเกม
+          resetGame(); // เรียกใช้ resetGame() เพื่อตั้งค่าทุกอย่างให้พร้อมเล่นใหม่
+          dialog.remove(); // ลบ dialog
+        };
+
+        dialog.appendChild(button);
+        document.body.appendChild(dialog);
+      }
+
+      function resetGame() {
+        // รีเซ็ตสถานะเกมทั้งหมด
+        gameOver = false; // รีเซ็ตให้เกมยังคงดำเนินต่อได้
+        treasureSelected = false; // รีเซ็ตการเลือกกล่อง
+        correctTreasureIndex = Math.floor(Math.random() * numBoxes); // เลือกกล่องใหม่
+        character.setPosition(50, game.height / 2); // รีเซ็ตตำแหน่งของตัวละคร
+        placeTreasures(); // วางกล่องสมบัติใหม่
+      }
+
+      function placeTreasures() {
+        treasures = []; // รีเซ็ตรายการสมบัติ
+        const gap = 150; // ระยะห่างระหว่างกล่องสมบัติ
+
+        for (let i = 0; i < numBoxes; i++) {
+          let treasure = new Treasure();
+          treasure.setPosition(200 + i * gap, 100); // ตั้งตำแหน่งให้ห่างกัน
+          treasures.push(treasure);
+        }
+      }
+
+      function checkTreasureCollision() {
+        if (gameover) return; // ถ้าเกมจบแล้วไม่ให้เลือกกล่อง
+
+        for (let i = 0; i < treasures.length; i++) {
+          if (character.distanceTo(treasures[i]) < 100) {
+            if (i === correctTreasureIndex) {
+              treasures[i].open(); // ถ้าเลือกกล่องถูก
+              character.setSpeed(0);
+              character.pauseAnimation();
+              showDialog("ยินดีด้วย! คุณชนะ!", true);
+              gameover = true;
+            } else {
+              treasures[i].empty(); // ถ้าเลือกกล่องผิด
+              character.setSpeed(0);
+              character.pauseAnimation();
+              giveHint(); // เรียกให้คำใบ้
+              updateHint(); // เรียกอัปเดตคำใบ้
+              gameover = true;
+            }
+            return;
+          }
+        }
+      }
+
+      // function checkTreasureCollision() {
+      //   if (gameOver) return; // ถ้าเกมจบแล้วจะไม่ให้เลือกกล่อง
+
+      //   for (let i = 0; i < treasures.length; i++) {
+      //     if (character.distanceTo(treasures[i]) < 100) {
+      //       if (i === correctTreasureIndex) {
+      //         treasures[i].open(); // ถ้าเลือกกล่องถูก
+      //         character.setSpeed(0);
+      //         character.pauseAnimation();
+      //         showDialog("ยินดีด้วย! คุณชนะ!", true);
+      //         gameOver = true; // กำหนดว่าเกมจบ
+      //       } else {
+      //         treasures[i].empty(); // ถ้าเลือกกล่องผิด
+      //         character.setSpeed(0);
+      //         character.pauseAnimation();
+      //         showDialog("เลือกผิด! ลองใหม่", false);
+      //         gameOver = true; // กำหนดว่าเกมจบ
+      //       }
+      //       return;
+      //     }
+      //   }
+      // }
+
+      function init() {
+        game = new Scene();
+        // เริ่มกำหนดค่าของ correctTreasureIndex
+        correctTreasureIndex = Math.floor(Math.random() * 3);
+        console.log("Correct Treasure Index on init:", correctTreasureIndex); // log ตรวจสอบค่าของ correctTreasureIndex
+
+        background = new Sprite(game, "bgt.jpg", 800, 600);
+        background.setSpeed(0, 0);
+        background.setPosition(400, 300);
+
+        character = new Sprite(game, "Boy.png", 256, 256);
+        character.setBoundAction(STOP);
+
+        // treasure4 = new Treasure();
+        // treasure4.setPosition(200, 100);
+
+        // treasure5 = new Treasure();
+        // treasure5.setPosition(400, 100);
+
+        // treasure6 = new Treasure();
+        // treasure6.setPosition(600, 100);
+
+        character.loadAnimation(256, 256, 64, 64);
+        character.generateAnimationCycles();
+        character.renameCycles(new Array("down", "left", "right", "up"));
+        character.setAnimationSpeed(300);
+
+        character.setPosition(50, game.height / 2);
+        character.setSpeed(0);
+        character.pauseAnimation();
+        character.setCurrentCycle("down");
+        placeTreasures();
+        document.addEventListener("keydown", function (event) {
+          keysDown[event.key] = true;
+        });
+
+        document.addEventListener("keyup", function (event) {
+          delete keysDown[event.key];
+        });
+
+        game.start();
+      }
+
+      function update() {
+        game.clear();
+        checkKeys();
+        // treasure4.update();
+        // treasure5.update();
+        // treasure6.update();
+        background.update();
+        character.update();
+        for (let i = 0; i < treasures.length; i++) {
+          treasures[i].update();
+        }
+        checkTreasureCollision();
+      }
+    </script>
+  </head>
+  <body onload="init()"></body>
+</html>
