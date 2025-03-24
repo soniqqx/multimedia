@@ -21,25 +21,32 @@
       function checkTreasureCollision() {
         if (gameOver) return; // ถ้าเกมจบแล้วไม่ให้เลือกกล่อง
 
-        if (character.distanceTo(treasure1) < 100) {
+        if (character.distanceTo(treasure1) < 62) {
           treasure1.empty();
           character.setSpeed(0);
           character.pauseAnimation();
-          showDialog("เลือกผิด! เกมเริ่มใหม่!", false);
+          showDialog("ว๊ายยยยกล่องนี้ไม่มีอาราย กลับไปเริ่มใหม่นะจ๊ะ", false);
           gameOver = true; // กำหนดว่าเกมจบแล้ว
-        } else if (character.distanceTo(treasure2) < 100) {
+        } else if (character.distanceTo(treasure2) < 62) {
           treasure2.open();
           character.setSpeed(0);
           character.pauseAnimation();
           showDialog("ยินดีด้วย! คุณชนะ!", true);
           gameOver = true; // กำหนดว่าเกมจบแล้ว
-        } else if (character.distanceTo(treasure3) < 100) {
+        } else if (character.distanceTo(treasure3) < 62) {
           treasure3.empty();
           character.setSpeed(0);
           character.pauseAnimation();
-          showDialog("เลือกผิด! เกมเริ่มใหม่!", false);
+          showDialog("เลือกไม่ถูกหนา เริ่มใหม่เลย!", false);
           gameOver = true; // กำหนดว่าเกมจบแล้ว
         }
+      }
+
+      function endGame(message, isWin) {
+        gameOver = true;
+        character.setSpeed(0);
+        character.pauseAnimation();
+        showDialog(message, isWin);
       }
 
       function showDialog(message, isWin) {
@@ -60,13 +67,12 @@
         dialog.appendChild(text);
 
         const button = document.createElement("button");
-        button.innerText = "เริ่มใหม่";
+        button.innerText = isWin ? "จบเกม" : "เริ่มใหม่";
         button.style.marginTop = "10px";
         button.onclick = () => {
-          // ใช้ setTimeout เพื่อดีเลย์การเปลี่ยนหน้า
           setTimeout(() => {
-            window.location.href = "Game.html";
-          }, 500); // ดีเลย์เล็กน้อยเพื่อให้ Dialog ปิดก่อน
+            window.location.href = isWin ? "Main.html" : "Game.html";
+          }, 500);
         };
 
         dialog.appendChild(button);
@@ -93,7 +99,7 @@
         // background.isBackground = true;
         // background.setSpeed(0, 0);
         // background.setPosition(game.canvas.width / 2, game.canvas.height / 2);
-        background = new Sprite(game, "bgt.jpg", 800, 600);
+        background = new Sprite(game, "bg3.png", 800, 600);
         background.setSpeed(0, 0);
         background.setPosition(400, 300);
         character = new Sprite(game, "Boy.png", 256, 256);
@@ -104,13 +110,13 @@
         // t.setSpeed(0);
 
         treasure1 = new Treasure();
-        treasure1.setPosition(200, 100);
+        treasure1.setPosition(260, 200);
 
         treasure2 = new Treasure();
-        treasure2.setPosition(400, 100);
+        treasure2.setPosition(540, 200);
 
         treasure3 = new Treasure();
-        treasure3.setPosition(600, 100);
+        treasure3.setPosition(550, 420);
 
         character.loadAnimation(256, 256, 64, 64);
         character.generateAnimationCycles();
